@@ -44,16 +44,16 @@ pub trait BitUtils: Sized + Copy {
     fn try_with_bits(self, start: u8, end: u8, value: Self) -> Option<Self>;
 }
 
+#[cold]
+#[inline(always)]
+const fn cold() {}
+
 macro_rules! impl_bit_utils {
     (inner; $($constness:ident)? => $t:ty) => {
         impl $($constness)? BitUtils for $t {
             #[inline(always)]
             fn bit(self, index: u8) -> bool {
-                let shifted = match self.checked_shr(index as u32) {
-                    Some(x) => x,
-                    None => 0
-                };
-
+                let shifted = self.unbounded_shr(index as u32);
                 (shifted & 1) > 0
             }
 
@@ -62,7 +62,10 @@ macro_rules! impl_bit_utils {
                 let shifted = self.checked_shr(index as u32);
                 match shifted {
                     Some(x) => Some((x & 1) > 0),
-                    None => None
+                    None => {
+                        cold();
+                        None
+                    }
                 }
             }
 
@@ -71,6 +74,7 @@ macro_rules! impl_bit_utils {
                 const ONE: $t = 1;
 
                 if index >= Self::BITS as u8 {
+                    cold();
                     return self;
                 }
 
@@ -84,6 +88,7 @@ macro_rules! impl_bit_utils {
                 const ONE: $t = 1;
 
                 if index >= Self::BITS as u8 {
+                    cold();
                     return None;
                 }
 
@@ -96,17 +101,13 @@ macro_rules! impl_bit_utils {
             fn bits(self, start: u8, end: u8) -> Self {
                 const ONE: $t = 1;
 
-                let len = end.saturating_sub(start) as u32;
-                if start >= Self::BITS as u8 || len == 0 {
+                if start >= Self::BITS as u8 || end < start {
+                    cold();
                     return 0;
                 }
 
-                let shifted_one = match ONE.checked_shl(len) {
-                    Some(x) => x,
-                    None => 0,
-                };
-                let mask = shifted_one.wrapping_sub(ONE);
-
+                let len = (end - start) as u32;
+                let mask = ONE.unbounded_shl(len).wrapping_sub(ONE);
                 let shifted_value = self >> (start as usize);
                 let result = shifted_value & mask;
 
@@ -118,17 +119,13 @@ macro_rules! impl_bit_utils {
             fn try_bits(self, start: u8, end: u8) -> Option<Self> {
                 const ONE: $t = 1;
 
-                let len = end.saturating_sub(start);
-                if start >= Self::BITS as u8 || end > Self::BITS as u8 || len == 0 {
+                if start >= Self::BITS as u8 || end > Self::BITS as u8 || end <= start {
+                    cold();
                     return None;
                 }
 
-                let shifted_one = match ONE.checked_shl(len as u32) {
-                    Some(x) => x,
-                    None => 0,
-                };
-                let mask = shifted_one.wrapping_sub(ONE);
-
+                let len = (end - start) as u32;
+                let mask = ONE.unbounded_shl(len).wrapping_sub(ONE);
                 let shifted_value = self >> (start as usize);
                 let result = shifted_value & mask;
 
@@ -140,16 +137,13 @@ macro_rules! impl_bit_utils {
             fn with_bits(self, start: u8, end: u8, value: Self) -> Self {
                 const ONE: $t = 1;
 
-                let len = end.saturating_sub(start) as u32;
-                if start >= Self::BITS as u8 || len == 0 {
+                if start >= Self::BITS as u8 || end <= start {
+                    cold();
                     return self;
                 }
 
-                let shifted_one = match ONE.checked_shl(len) {
-                    Some(x) => x,
-                    None => 0,
-                };
-                let mask = shifted_one.wrapping_sub(ONE);
+                let len = (end - start) as u32;
+                let mask = ONE.unbounded_shl(len).wrapping_sub(ONE);
                 let value = value & mask;
 
                 let shifted_mask = mask << (start as usize);
@@ -162,16 +156,13 @@ macro_rules! impl_bit_utils {
             fn try_with_bits(self, start: u8, end: u8, value: Self) -> Option<Self> {
                 const ONE: $t = 1;
 
-                let len = end.saturating_sub(start) as u32;
-                if start >= Self::BITS as u8 || end > Self::BITS as u8 || len == 0 {
+                if start >= Self::BITS as u8 || end > Self::BITS as u8 || end <= start {
+                    cold();
                     return None;
                 }
 
-                let shifted_one = match ONE.checked_shl(len) {
-                    Some(x) => x,
-                    None => 0,
-                };
-                let mask = shifted_one.wrapping_sub(ONE);
+                let len = (end - start) as u32;
+                let mask = ONE.unbounded_shl(len).wrapping_sub(ONE);
                 let value = value & mask;
 
                 let shifted_mask = mask << (start as usize);
