@@ -7,42 +7,50 @@
 //! # Features
 //! - `const_impl` (nightly only): makes [`BitUtils`] a const trait.
 
-/// Provides methods for querying and modifying the value of specific bits. Convention is LSB0.
-#[cfg_attr(feature = "const_impl", const_trait)]
-pub trait BitUtils: Sized + Copy {
-    /// Returns whether the bit at `index` is set or not. Indices out of range always return false.
-    fn bit(self, index: u8) -> bool;
+macro_rules! define_bit_utils {
+    ($($constness:ident)?) => {
+        /// Provides methods for querying and modifying the value of specific bits. Convention is LSB0.
+        pub $($constness)? trait BitUtils: Sized + Copy {
+            /// Returns whether the bit at `index` is set or not. Indices out of range always return false.
+            fn bit(self, index: u8) -> bool;
 
-    /// Returns whether the bit at `index` is set or not. If out of range, returns [`None`].
-    fn try_bit(self, index: u8) -> Option<bool>;
+            /// Returns whether the bit at `index` is set or not. If out of range, returns [`None`].
+            fn try_bit(self, index: u8) -> Option<bool>;
 
-    /// Sets the state of the bit at `index`. Indices out of range return the value unmodified.
-    #[must_use = "with_bit returns a new value instead of modifying the original"]
-    fn with_bit(self, index: u8, value: bool) -> Self;
+            /// Sets the state of the bit at `index`. Indices out of range return the value unmodified.
+            #[must_use = "with_bit returns a new value instead of modifying the original"]
+            fn with_bit(self, index: u8, value: bool) -> Self;
 
-    /// Sets the state of the bit at `index`. If out of range, returns [`None`].
-    #[must_use = "with_bit returns a new value instead of modifying the original"]
-    fn try_with_bit(self, index: u8, value: bool) -> Option<Self>;
+            /// Sets the state of the bit at `index`. If out of range, returns [`None`].
+            #[must_use = "with_bit returns a new value instead of modifying the original"]
+            fn try_with_bit(self, index: u8, value: bool) -> Option<Self>;
 
-    /// Extracts the value between bits `start` (inclusive) and `end` (exclusive). Bits out of
-    /// range are always zero and invalid ranges return zero.
-    fn bits(self, start: u8, end: u8) -> Self;
+            /// Extracts the value between bits `start` (inclusive) and `end` (exclusive). Bits out of
+            /// range are always zero and invalid ranges return zero.
+            fn bits(self, start: u8, end: u8) -> Self;
 
-    /// Extracts the value between bits `start` (inclusive) and `end` (exclusive). If the range is
-    /// invalid, returns [`None`].
-    fn try_bits(self, start: u8, end: u8) -> Option<Self>;
+            /// Extracts the value between bits `start` (inclusive) and `end` (exclusive). If the range is
+            /// invalid, returns [`None`].
+            fn try_bits(self, start: u8, end: u8) -> Option<Self>;
 
-    /// Sets the value between given bits. The value is masked, so a value with more bits than
-    /// available will drop it's most significant bits. Bits out of range are left unmodified and
-    /// invalid ranges return the value unmodified.
-    #[must_use = "with_bits returns a new value instead of modifying the original"]
-    fn with_bits(self, start: u8, end: u8, value: Self) -> Self;
+            /// Sets the value between given bits. The value is masked, so a value with more bits than
+            /// available will drop it's most significant bits. Bits out of range are left unmodified and
+            /// invalid ranges return the value unmodified.
+            #[must_use = "with_bits returns a new value instead of modifying the original"]
+            fn with_bits(self, start: u8, end: u8, value: Self) -> Self;
 
-    /// Sets the value between given bits. The value is masked, so a value with more bits than
-    /// available will drop it's most significant bits. If the range is invalid, returns [`None`].
-    #[must_use = "with_bits returns a new value instead of modifying the original"]
-    fn try_with_bits(self, start: u8, end: u8, value: Self) -> Option<Self>;
+            /// Sets the value between given bits. The value is masked, so a value with more bits than
+            /// available will drop it's most significant bits. If the range is invalid, returns [`None`].
+            #[must_use = "with_bits returns a new value instead of modifying the original"]
+            fn try_with_bits(self, start: u8, end: u8, value: Self) -> Option<Self>;
+        }
+    }
 }
+
+#[cfg(not(feature = "const_impl"))]
+define_bit_utils!();
+#[cfg(feature = "const_impl")]
+define_bit_utils!(const);
 
 #[cold]
 #[inline(always)]
