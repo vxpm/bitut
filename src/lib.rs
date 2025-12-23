@@ -193,9 +193,9 @@ macro_rules! impl_bit_utils {
 }
 
 #[cfg(not(feature = "const_impl"))]
-impl_bit_utils!(u8, u16, u32, u64, i8, i16, i32, i64, i128);
+impl_bit_utils!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 #[cfg(feature = "const_impl")]
-impl_bit_utils!(const => u8, u16, u32, u64, i8, i16, i32, i64, u128);
+impl_bit_utils!(const => u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
 #[cfg(test)]
 mod test {
