@@ -7,6 +7,10 @@
 //! # Features
 //! - `const_impl` (nightly only): makes [`BitUtils`] a const trait.
 
+#[cold]
+#[inline(always)]
+const fn cold() {}
+
 macro_rules! define_bit_utils {
     ($($constness:ident)?) => {
         /// Provides methods for querying and modifying the value of specific bits. Convention is LSB0.
@@ -17,13 +21,39 @@ macro_rules! define_bit_utils {
             /// Returns whether the bit at `index` is set or not. If out of range, returns [`None`].
             fn try_bit(self, index: u8) -> Option<bool>;
 
-            /// Sets the state of the bit at `index`. Indices out of range return the value unmodified.
+            /// Sets the state of the bit at `index` and returns the new value. Indices out of range
+            /// return the value unmodified.
             #[must_use = "with_bit returns a new value instead of modifying the original"]
             fn with_bit(self, index: u8, value: bool) -> Self;
 
-            /// Sets the state of the bit at `index`. If out of range, returns [`None`].
+            /// Sets the state of the bit at `index` and returns the new value. If out of range,
+            /// returns [`None`].
             #[must_use = "with_bit returns a new value instead of modifying the original"]
             fn try_with_bit(self, index: u8, value: bool) -> Option<Self>;
+
+            /// Sets the state of the bit at `index` in place. Indices out of range return the value
+            /// unmodified.
+            #[inline(always)]
+            fn set_bit(&mut self, index: u8, value: bool) {
+                *self = self.with_bit(index, value);
+            }
+
+            /// Sets the state of the bit at `index` in place. Returns whether the value was
+            /// modified (i.e. the index is in range).
+            #[inline(always)]
+            fn try_set_bit(&mut self, index: u8, value: bool) -> bool {
+                let new = self.try_with_bit(index, value);
+                match new {
+                    Some(value) => {
+                        *self = value;
+                        true
+                    },
+                    None => {
+                        cold();
+                        false
+                    },
+                }
+            }
 
             /// Extracts the value between bits `start` (inclusive) and `end` (exclusive). Bits out of
             /// range are always zero and invalid ranges return zero.
@@ -43,6 +73,32 @@ macro_rules! define_bit_utils {
             /// available will drop it's most significant bits. If the range is invalid, returns [`None`].
             #[must_use = "with_bits returns a new value instead of modifying the original"]
             fn try_with_bits(self, start: u8, end: u8, value: Self) -> Option<Self>;
+
+            /// Sets the value between given bits in place. The value is masked, so a value with more
+            /// bits than available will drop it's most significant bits. Bits out of range are left
+            /// unmodified and invalid ranges don't modify the value.
+            #[inline(always)]
+            fn set_bits(&mut self, start: u8, end: u8, value: Self) {
+                *self = self.with_bits(start, end, value);
+            }
+
+            /// Sets the value between given bits. The value is masked, so a value with more bits than
+            /// available will drop it's most significant bits. Returns whether the value was
+            /// modified (i.e. the range is valid).
+            #[inline(always)]
+            fn try_set_bits(&mut self, start: u8, end: u8, value: Self) -> bool {
+                let new = self.try_with_bits(start, end, value);
+                match new {
+                    Some(value) => {
+                        *self = value;
+                        true
+                    },
+                    None => {
+                        cold();
+                        false
+                    },
+                }
+            }
         }
     }
 }
@@ -51,10 +107,6 @@ macro_rules! define_bit_utils {
 define_bit_utils!();
 #[cfg(feature = "const_impl")]
 define_bit_utils!(const);
-
-#[cold]
-#[inline(always)]
-const fn cold() {}
 
 macro_rules! impl_bit_utils {
     (inner; $($constness:ident)? => $t:ty) => {
